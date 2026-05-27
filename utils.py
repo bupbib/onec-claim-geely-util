@@ -6,6 +6,7 @@ import typer
 from typer import colors 
 from pywinauto import WindowSpecification, mouse
 from pywinauto.controls.uiawrapper import UIAWrapper
+from pywinauto.keyboard import send_keys
 import pydirectinput
 
 from enums import MyApp, DetailsTableColumns
@@ -206,3 +207,31 @@ def delete_empty_rows(table: UIAWrapper, empty_marker: str) -> bool:
             item.type_keys('{DEL}')
     
     return delete_flag
+
+
+def delete_incorrect_upd(window: WindowSpecification, upd: UIAWrapper) -> None:
+    """
+    Удаляет некорректное значение УПД из ячейки и обрабатывает всплывающие окна 1С.
+    
+    При удалении УПД, которая не найдена или не может быть применена,
+    1С может показать одно из двух окон:
+        - 'Накладные по данной позиции не найдены' — информационное окно
+        - 'Расходные накладные' — окно выбора накладной
+    
+    Args:
+        window: Главное окно приложения (geely_window)
+        upd: Элемент ячейки таблицы с УПД (row[DetailsTableColumns.UPD_NUMBER])
+    """
+    not_search_window = window.child_window(title='Накладные по данной позиции не найдены', control_type='Text')
+    invoices_window = window.child_window(title='Расходные накладные', control_type='Window')
+
+    logger.debug(f'Удаляю некорректную УПД: {upd.window_text().split()[0]}')
+    upd.click_input()
+    upd.type_keys('{DEL}{ENTER}', pause=1)   
+
+    if not_search_window.exists():
+        logger.debug(f'Появилось окно о ненайденой УПД, закрываю')
+        send_keys('{ENTER}')
+    elif invoices_window.exists():
+        logger.debug(f'Появилось окно с расходными накладными, закрываю')
+        invoices_window.child_window(title='Закрыть', control_type='Button').click_input()
