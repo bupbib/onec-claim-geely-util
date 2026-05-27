@@ -14,7 +14,7 @@ from pydantic import ValidationError
 
 from enums import DetailsTableColumns, OneCWebWMS, MyApp, ReportAddDetails, ClaimWindow
 from utils import (
-    delete_empty_rows, error_exit, print_log, 
+    delete_empty_rows, error_exit, print_log,  delete_incorrect_upd,
     generate_docs, extract_details_row, perform_search_with_retry
 )
 from models import DetailItem
@@ -208,9 +208,12 @@ def add_details(
     total_details = len(all_details)
     geely_window: WindowSpecification = ctx.obj 
 
+    # Была ли хоть одна УПД детали ненайдена
+    not_search_upd = False 
+
     geely_window.set_focus()
 
-    logger.info(f'Выполнение команды {MyApp.ADD_DETAILS}, количество кодов: {total_details}')
+    logger.info(f'Выполнение команды {MyApp.ADD_DETAILS}, количество деталей: {total_details}')
 
     geely_window.child_window(title_re='Детали', control_type='TabItem').click_input()
     add_detail_btn = geely_window.child_window(title='Добавить', control_type='Button').wrapper_object()
@@ -275,7 +278,19 @@ def add_details(
             row[DetailsTableColumns.UPD_NUMBER].type_keys('{ENTER}')
 
             if geely_window.child_window(title='Накладные по данной позиции не найдены', control_type='Text').exists():
+                not_search_upd = True 
                 send_keys('{ENTER}')
+                delete_incorrect_upd(window=geely_window, upd=row[DetailsTableColumns.UPD_NUMBER])
+            elif geely_window.child_window(title='Расходные накладные', control_type='Window').exists():
+                invoices_window = geely_window.child_window(title='Расходные накладные', control_type='Window')
+                all_invoices = invoices_window.wrapper_object().descendants(control_type='ListItem')
+
+                if len(all_invoices) == 1:
+                    all_invoices[0].click_input(double=True)
+                else:
+                    not_search_upd = True 
+                    invoices_window.child_window(title='Закрыть', control_type='Button').click_input()  
+                    delete_incorrect_upd(window=geely_window, upd=row[DetailsTableColumns.UPD_NUMBER])              
         else:
             if idx < total_details:
                 need_open_tab = False 
@@ -297,6 +312,15 @@ def add_details(
         # Если не была удалена ни одна строка, то фокус остается на ячейке "Количество"
         # последней добавленной строки, кликая по центру мы этот фокус убираем
         geely_window.click_input() 
+    
+    report_path = Path(ReportAddDetails.DIR) / ReportAddDetails.FILENAME
+    report = {'not_found': not_found_details, 'invalid': invalid_details, 'not_search_upd': not_search_upd}
+
+    # Вообще папка создается роботом, но на всякий случай сюда тоже добавил, если папка есть - ничего не будет
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(report_path, 'w', encoding='utf-8') as file:
+        json.dump(report, file, ensure_ascii=False, indent=4)
 
     if not not_found_details and not invalid_details:
         print_log(msg='Все детали успешно добавлены!') 
@@ -307,16 +331,6 @@ def add_details(
         )
     else:
         found_count = total_details - len(not_found_details) - len(invalid_details)
-        report = {'not_found': not_found_details, 'invalid': invalid_details}
-
-        report_path = Path(ReportAddDetails.DIR) / ReportAddDetails.FILENAME
-
-        # Вообще папка создается роботом, но на всякий случай сюда тоже добавил, если папка есть - ничего не будет
-        report_path.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(report_path, 'w', encoding='utf-8') as file:
-            json.dump(report, file, ensure_ascii=False, indent=4)
-
         print_log(
             msg=f'Частичный успех. Добавлено {found_count} из {total_details}. '
                 f'Не найдены: {len(not_found_details)}. '
@@ -330,7 +344,7 @@ if __name__ == '__main__':
     # Робот (Robin RPA) корректно показывает кириллицу только в кодировке cp866.
     # При тестировании в обычной консоли Windows эта кодировка даёт кракозябры.
     # Поэтому при тестировании закомментируйте строку ниже, а перед запуском в роботе — раскомментируйте.
-    sys.stdout.reconfigure(encoding='cp866', errors='replace')  # pyright: ignore[reportAttributeAccessIssue]
+    # sys.stdout.reconfigure(encoding='cp866', errors='replace')  # pyright: ignore[reportAttributeAccessIssue]
 
     log_file = Path(__file__).parent / 'app.log'
 
