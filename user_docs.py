@@ -2,7 +2,7 @@
 # ПОЛЬЗОВАТЕЛЬСКАЯ ДОКУМЕНТАЦИЯ ДЛЯ CLI
 # ====================================================
 
-from enums import MyApp
+from enums import MyApp, ClaimWindow
 
 
 LEXICON = {
@@ -21,8 +21,8 @@ LEXICON = {
             - Ни один код не найден → жёлтое сообщение с просьбой проверить коды
         
         Примеры:
-            {MyApp.NAME} {MyApp.ADD_JOBS} FX11720101
-            {MyApp.NAME} {MyApp.ADD_JOBS} FX11720101 FX11720102 FX11720103
+            {MyApp.NAME} -w {ClaimWindow.GMR} {MyApp.ADD_JOBS} FX11720101
+            {MyApp.NAME} -w {ClaimWindow.SMR} {MyApp.ADD_JOBS} FX11720101 FX11720102 FX11720103
         """,
     MyApp.ADD_DETAILS:
         f"""
@@ -52,11 +52,21 @@ LEXICON = {
 
         Результат:
             - Все детали добавлены → зелёное сообщение
-            - Частичный успех → жёлтое сообщение + JSON отчёт (details_report.json)
+            - Частичный успех → жёлтое сообщение
             - Ни одна деталь не добавлена → жёлтое сообщение
 
+        Отчёт:
+            В любом случае создаётся файл details_report.json (C:\\ROBOT_CLAIM\\details_report.json).
+            Структура отчёта:
+                {{
+                    "not_found": [],      // детали, не найденные в номенклатуре
+                    "invalid": [],        // детали, не прошедшие валидацию
+                    "not_search_upd": true/false  // флаг: были ли проблемы с УПД
+                }}
+            Робот всегда должен проверять этот файл, особенно флаг not_search_upd.
+
         Примеры:
-            {MyApp.NAME} {MyApp.ADD_DETAILS} response.json
-            {MyApp.NAME} {MyApp.ADD_DETAILS} C:\\temp\\response.json
+            {MyApp.NAME} -w {ClaimWindow.GMR} {MyApp.ADD_DETAILS} response.json
+            {MyApp.NAME} -w {ClaimWindow.SMR} {MyApp.ADD_DETAILS} C:\\temp\\response.json
         """
 }
