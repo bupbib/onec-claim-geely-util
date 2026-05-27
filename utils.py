@@ -54,7 +54,7 @@ def generate_docs(cmd: MyApp):
     return decorator
 
 
-def extract_details_row(table_row_elements: list[UIAWrapper], row_number: int) -> dict:
+def extract_details_row(table_row_elements: list[UIAWrapper], row_number: int) -> dict[DetailsTableColumns, UIAWrapper]:
     """
     Извлекает данные из строки таблицы Детали и возвращает словарь с соответствием столбец: значение.
     
