@@ -191,10 +191,12 @@ def add_details(
     """
     Добавить детали в рекламацию из JSON файла
     """  
+    all_details = []
+    
     with open(file_path, encoding='utf-8') as file:
         try:
             data = json.load(file)
-            all_details = data.get('payload', {}).get('Детали')
+            all_details: list[dict[str, int | str]] = data.get('payload', {}).get('Детали')
 
             if all_details is None: raise typer.BadParameter('В передаваемом json отсутствует обязательный ключ "Детали"')
         except json.JSONDecodeError as json_err:
@@ -205,7 +207,7 @@ def add_details(
     
     invalid_details = []
     not_found_details = []
-    total_details = len(all_details)
+    total_details = len(all_details) 
     geely_window: WindowSpecification = ctx.obj 
 
     # Была ли хоть одна УПД детали ненайдена
